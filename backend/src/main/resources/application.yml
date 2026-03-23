@@ -5,13 +5,15 @@ spring:
   application:
     name: studycafe
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:studycafe;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/studycafe?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: studycafe
+    password: 1234
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
+    show-sql: true
     properties:
       hibernate:
         format_sql: true
