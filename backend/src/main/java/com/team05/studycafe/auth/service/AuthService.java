@@ -4,6 +4,7 @@ import com.team05.studycafe.auth.dto.LoginRequest;
 import com.team05.studycafe.auth.dto.LoginResponse;
 import com.team05.studycafe.auth.dto.SignupRequest;
 import com.team05.studycafe.auth.dto.SignupResponse;
+import com.team05.studycafe.auth.jwt.JwtTokenProvider;
 import com.team05.studycafe.common.exception.CustomException;
 import com.team05.studycafe.common.exception.ErrorCode;
 import com.team05.studycafe.user.domain.User;
@@ -18,10 +19,12 @@ public class AuthService {
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final JwtTokenProvider jwtTokenProvider;
 
-	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
+		this.jwtTokenProvider = jwtTokenProvider;
 	}
 
 	@Transactional(readOnly = true)
@@ -33,7 +36,13 @@ public class AuthService {
 			throw new CustomException(ErrorCode.USER_LOGIN_FAILED);
 		}
 
-		return LoginResponse.from(user);
+		String accessToken = jwtTokenProvider.createAccessToken(
+				user.getId(),
+				user.getLoginId(),
+				user.getRole().name()
+		);
+
+		return LoginResponse.from(user, accessToken);
 	}
 
 	@Transactional

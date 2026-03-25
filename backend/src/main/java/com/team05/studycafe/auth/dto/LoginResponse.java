@@ -9,15 +9,17 @@ public record LoginResponse(
 		String loginId,
 		String name,
 		UserStatus userStatus,
-		UserRole role
+		UserRole role,
+		String accessToken
 ) {
-	public static LoginResponse from(User user) {
+	public static LoginResponse from(User user, String accessToken) {
 		return new LoginResponse(
 				user.getId(),
 				user.getLoginId(),
 				user.getName(),
 				user.getUserStatus(),
-				user.getRole()
+				user.getRole(),
+				accessToken
 		);
 	}
 }
