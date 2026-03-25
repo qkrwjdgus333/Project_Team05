@@ -1,10 +1,12 @@
 package com.team05.studycafe.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team05.studycafe.auth.jwt.JwtAuthenticationFilter;
 import com.team05.studycafe.common.exception.ErrorCode;
 import com.team05.studycafe.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -16,13 +18,18 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+	public SecurityFilterChain securityFilterChain(
+			HttpSecurity http,
+			ObjectMapper objectMapper,
+			ObjectProvider<JwtAuthenticationFilter> jwtAuthenticationFilterProvider
+	) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
@@ -46,6 +53,11 @@ public class SecurityConfig {
 								writeErrorResponse(response, objectMapper, ErrorCode.COMMON_FORBIDDEN))
 				)
 				.cors(Customizer.withDefaults());
+
+		JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilterProvider.getIfAvailable();
+		if (jwtAuthenticationFilter != null) {
+			http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+		}
 
 		return http.build();
 	}

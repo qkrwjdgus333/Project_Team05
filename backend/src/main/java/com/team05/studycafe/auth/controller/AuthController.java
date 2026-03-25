@@ -31,7 +31,7 @@ public class AuthController {
 		return ApiResponse.success(authService.signup(request));
 	}
 
-	@Operation(summary = "로그인", description = "아이디/비밀번호를 검증하고 사용자 기본 정보를 반환합니다.")
+	@Operation(summary = "로그인", description = "아이디/비밀번호를 검증하고 access token과 사용자 기본 정보를 반환합니다.")
 	@PostMapping("/login")
 	public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ApiResponse.success(authService.login(request));

@@ -2,6 +2,7 @@ package com.team05.studycafe.auth.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,8 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team05.studycafe.auth.dto.LoginRequest;
 import com.team05.studycafe.auth.dto.SignupRequest;
+import com.team05.studycafe.auth.jwt.JwtProperties;
 import com.team05.studycafe.user.domain.User;
 import com.team05.studycafe.user.repository.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+import javax.crypto.SecretKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +45,9 @@ class AuthControllerTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtProperties jwtProperties;
 
 	@BeforeEach
 	void setUp() {
@@ -111,6 +122,7 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.data.name").value("로그인회원"))
 				.andExpect(jsonPath("$.data.userStatus").value("NORMAL"))
 				.andExpect(jsonPath("$.data.role").value("USER"))
+				.andExpect(jsonPath("$.data.accessToken").isString())
 				.andExpect(jsonPath("$.timestamp").exists());
 	}
 
@@ -145,5 +157,81 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.error.code").value("USER-401"))
 				.andExpect(jsonPath("$.error.message").value("아이디 또는 비밀번호가 올바르지 않습니다."))
 				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	@DisplayName("성공: 유효한 access token으로 보호 API(/api/v1/users/me)에 접근할 수 있다.")
+	void me_success_with_valid_token() throws Exception {
+		User user = User.create("tokenUser", passwordEncoder.encode("password123!"), "토큰회원", "010-5555-6666", "token@test.com");
+		userRepository.save(user);
+
+		LoginRequest loginRequest = new LoginRequest("tokenUser", "password123!");
+		String loginBody = mockMvc.perform(post("/api/v1/auth/login")
+						.contentType(APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(loginRequest)))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		String accessToken = objectMapper.readTree(loginBody).path("data").path("accessToken").asText();
+
+		mockMvc.perform(get("/api/v1/users/me")
+						.header("Authorization", "Bearer " + accessToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.loginId").value("tokenUser"))
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	@DisplayName("실패: 토큰 없이 보호 API 접근 시 401 에러를 반환한다.")
+	void me_fail_without_token() throws Exception {
+		mockMvc.perform(get("/api/v1/users/me"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("COMMON-401"))
+				.andExpect(jsonPath("$.error.message").value("인증이 필요합니다."))
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	@DisplayName("실패: 잘못된 토큰으로 보호 API 접근 시 401 에러를 반환한다.")
+	void me_fail_with_invalid_token() throws Exception {
+		mockMvc.perform(get("/api/v1/users/me")
+						.header("Authorization", "Bearer invalid-token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("AUTH-401"))
+				.andExpect(jsonPath("$.error.message").value("유효하지 않은 토큰입니다."))
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	@DisplayName("실패: 만료된 토큰으로 보호 API 접근 시 401 에러를 반환한다.")
+	void me_fail_with_expired_token() throws Exception {
+		String expiredToken = createExpiredToken("expiredUser");
+
+		mockMvc.perform(get("/api/v1/users/me")
+						.header("Authorization", "Bearer " + expiredToken))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("AUTH-402"))
+				.andExpect(jsonPath("$.error.message").value("만료된 토큰입니다."))
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	private String createExpiredToken(String loginId) {
+		SecretKey secretKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+		Instant now = Instant.now();
+
+		return Jwts.builder()
+				.subject(loginId)
+				.claim("userId", 0L)
+				.claim("role", "USER")
+				.issuedAt(Date.from(now.minusSeconds(120)))
+				.expiration(Date.from(now.minusSeconds(60)))
+				.signWith(secretKey)
+				.compact();
 	}
 }
