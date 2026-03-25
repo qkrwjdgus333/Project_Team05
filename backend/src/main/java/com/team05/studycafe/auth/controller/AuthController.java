@@ -1,5 +1,7 @@
 package com.team05.studycafe.auth.controller;
 
+import com.team05.studycafe.auth.dto.LoginRequest;
+import com.team05.studycafe.auth.dto.LoginResponse;
 import com.team05.studycafe.auth.dto.SignupRequest;
 import com.team05.studycafe.auth.dto.SignupResponse;
 import com.team05.studycafe.auth.service.AuthService;
@@ -27,5 +29,11 @@ public class AuthController {
 	@PostMapping("/signup")
 	public ApiResponse<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
 		return ApiResponse.success(authService.signup(request));
+	}
+
+	@Operation(summary = "로그인", description = "아이디/비밀번호를 검증하고 사용자 기본 정보를 반환합니다.")
+	@PostMapping("/login")
+	public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+		return ApiResponse.success(authService.login(request));
 	}
 }

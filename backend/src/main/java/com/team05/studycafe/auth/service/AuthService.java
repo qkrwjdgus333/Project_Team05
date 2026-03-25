@@ -1,5 +1,7 @@
 package com.team05.studycafe.auth.service;
 
+import com.team05.studycafe.auth.dto.LoginRequest;
+import com.team05.studycafe.auth.dto.LoginResponse;
 import com.team05.studycafe.auth.dto.SignupRequest;
 import com.team05.studycafe.auth.dto.SignupResponse;
 import com.team05.studycafe.common.exception.CustomException;
@@ -20,6 +22,18 @@ public class AuthService {
 	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
+	}
+
+	@Transactional(readOnly = true)
+	public LoginResponse login(LoginRequest request) {
+		User user = userRepository.findByLoginId(request.loginId())
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_LOGIN_FAILED));
+
+		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+			throw new CustomException(ErrorCode.USER_LOGIN_FAILED);
+		}
+
+		return LoginResponse.from(user);
 	}
 
 	@Transactional
