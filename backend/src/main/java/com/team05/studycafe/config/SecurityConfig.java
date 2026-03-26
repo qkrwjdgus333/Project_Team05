@@ -44,6 +44,7 @@ public class SecurityConfig {
 								"/api/v1/auth/signup",
 								"/api/v1/auth/login"
 						).permitAll()
+						.requestMatchers("/api/v1/seats/**").authenticated()
 						.anyRequest().authenticated()
 				)
 				.exceptionHandling(exception -> exception

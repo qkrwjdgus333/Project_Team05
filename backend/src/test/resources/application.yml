@@ -19,3 +19,8 @@ logging:
 jwt:
   secret: test-local-secret-key-for-jwt-signing-2026-123456
   access-token-expiration-millis: 3600000
+
+app:
+  seed:
+    seats:
+      enabled: false
